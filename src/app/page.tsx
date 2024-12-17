@@ -140,7 +140,8 @@ const StationData = () => {
                   시간대별 승차/하차 인원
                 </Typography>
               </Box>
-              <Line data={chartData} type={undefined} />
+              {/* Line 차트에서 'type' 속성 제거 */}
+              <Line data={chartData} />
             </CardContent>
           </Card>
         </Grid>
