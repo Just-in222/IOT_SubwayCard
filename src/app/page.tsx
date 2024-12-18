@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from "chart.js";
 import { Container, Typography, MenuItem, Select, Card, CardContent, Grid, Box, Button } from "@mui/material";
@@ -9,16 +9,21 @@ import { SelectChangeEvent } from "@mui/material";
 // Chart.js 설정
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-// 타입 정의
+// 데이터 타입 정의
+type RowData = {
+  STTN: string; // 역 이름
+  [key: string]: string | number; // 추가 속성
+};
+
 type ChartData = {
-  labels: string[]; // 시간대
+  labels: string[];
   datasets: {
     label: string;
     data: number[];
     borderColor: string;
     backgroundColor: string;
     fill: boolean;
-  }[];  
+  }[];
 };
 
 const StationData = () => {
@@ -44,26 +49,24 @@ const StationData = () => {
   });
 
   // 데이터 불러오는 함수
-  const fetchData = async (station: string) => {
+  const fetchData = useCallback(async (station: string) => {
     try {
-      // Vercel API 호출
       const res = await fetch(`/api/fetchData`);
       const data = await res.json();
 
-      const rows = data.data.CardSubwayTime.row;
-      const filteredRow = rows.find((row: any) => row.STTN === station);
+      const rows: RowData[] = data.data.CardSubwayTime.row; // 데이터 구조 지정
+      const filteredRow = rows.find((row) => row.STTN === station);
 
       if (!filteredRow) {
         console.error(`No data found for the station: ${station}`);
         return;
       }
 
-      // 시간대와 승차/하차 데이터 추출
+      // 시간대 및 데이터 처리
       const times = Array.from({ length: 24 }, (_, i) => `${i}시`);
-      const rideData = times.map((_, i) => Number(filteredRow[`HR_${i}_GET_ON_NOPE`]) || 0);
-      const getOffData = times.map((_, i) => Number(filteredRow[`HR_${i}_GET_OFF_NOPE`]) || 0);
+      const rideData = times.map((_, i) => Number(filteredRow[`HR_${i}_GET_ON_NOPE`] || 0));
+      const getOffData = times.map((_, i) => Number(filteredRow[`HR_${i}_GET_OFF_NOPE`] || 0));
 
-      // 차트 데이터 업데이트
       setChartData({
         labels: times,
         datasets: [
@@ -74,12 +77,12 @@ const StationData = () => {
     } catch (error) {
       console.error("Error fetching or processing data:", error);
     }
-  };
+  }, [chartData.datasets]);
 
   // 데이터 처음 로드 및 역 변경 시마다 데이터 새로 불러오기
   useEffect(() => {
     fetchData(selectedStation);
-  }, [selectedStation]);
+  }, [fetchData, selectedStation]);
 
   // 역 선택 변경 처리 함수
   const handleStationChange = (event: SelectChangeEvent) => {
@@ -140,7 +143,6 @@ const StationData = () => {
                   시간대별 승차/하차 인원
                 </Typography>
               </Box>
-              {/* Line 차트에서 'type' 속성 제거 */}
               <Line data={chartData} />
             </CardContent>
           </Card>
